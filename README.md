@@ -20,6 +20,7 @@ curl -s -L https://k14s.io/install.sh | \
 
 ```bash
 git clone https://github.com/paulczar/gcc-cloudsql
+cd gcc-cloudsql
 ```
 
 

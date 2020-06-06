@@ -1,0 +1,46 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:template", "template")
+
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeNetwork
+metadata:
+  name: #@ data.values.name + "-db"
+  namespace: #@ data.values.namespace
+  annotations:
+    cnrm.cloud.google.com/project-id: #@ data.values.gcp.projectID
+    kapp.k14s.io/change-group: #@ data.values.gcp.projectID + "/network"
+---
+apiVersion: compute.cnrm.cloud.google.com/v1beta1
+kind: ComputeAddress
+metadata:
+  name: #@ data.values.name + "-db"
+  namespace: #@ data.values.namespace
+  annotations:
+    cnrm.cloud.google.com/project-id: #@ data.values.gcp.projectID
+    kapp.k14s.io/change-group: #@ data.values.gcp.projectID + "/network"
+spec:
+  addressType: INTERNAL
+  location: global
+  purpose: VPC_PEERING
+  prefixLength: 16
+  networkRef:
+    external: default
+    name: #@ data.values.name + "-db"
+---
+apiVersion: servicenetworking.cnrm.cloud.google.com/v1beta1
+kind: ServiceNetworkingConnection
+metadata:
+  name: #@ data.values.name + "-db"
+  namespace: #@ data.values.namespace
+  annotations:
+    cnrm.cloud.google.com/project-id: #@ data.values.gcp.projectID
+    kapp.k14s.io/change-group: #@ data.values.gcp.projectID + "/network"
+spec:
+  networkRef:
+    external: default
+    external: #@ data.values.name + "-db"
+  reservedPeeringRanges:
+    - name: #@ data.values.name + "-db"
+  service: servicenetworking.googleapis.com
+---

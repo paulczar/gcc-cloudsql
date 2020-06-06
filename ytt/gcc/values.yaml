@@ -1,0 +1,4 @@
+#@data/values
+---
+gcp:
+  projectID: "your-gcp-project-id-here"

@@ -1,0 +1,12 @@
+#@data/values
+---
+
+gcp:
+  projectID: your-project-id
+  region: us-central1
+
+db:
+  rootPassword: this-is-a-bad-password
+
+name: demo
+namespace: cloudsql

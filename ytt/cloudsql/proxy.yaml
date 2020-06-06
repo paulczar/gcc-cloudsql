@@ -1,0 +1,91 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:template", "template")
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMServiceAccount
+metadata:
+  name: #@ data.values.name + "-db-proxy"
+  namespace: #@ data.values.namespace
+  annotations:
+    cnrm.cloud.google.com/project-id: #@ data.values.gcp.projectID
+spec:
+  displayName: #@ data.values.name + "-db-proxy workload identity"
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: #@ data.values.name + "-db-proxy-sql-client"
+  namespace: #@ data.values.namespace
+  annotations:
+    cnrm.cloud.google.com/project-id: #@ data.values.gcp.projectID
+spec:
+  member: #@ "serviceAccount:" + data.values.name + "-db-proxy@" + data.values.gcp.projectID + ".iam.gserviceaccount.com"
+  role: roles/cloudsql.client
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: #@ "projects/" + data.values.gcp.projectID
+---
+apiVersion: iam.cnrm.cloud.google.com/v1beta1
+kind: IAMPolicyMember
+metadata:
+  name: #@ data.values.name + "-db-proxy-workload-id"
+  namespace: #@ data.values.namespace
+  annotations:
+    cnrm.cloud.google.com/project-id: #@ data.values.gcp.projectID
+spec:
+  member: #@ "serviceAccount:" + data.values.gcp.projectID + ".svc.id.goog[" + data.values.namespace + "/" + data.values.name + "-db-proxy]"
+  role: roles/iam.workloadIdentityUser
+  resourceRef:
+    apiVersion: resourcemanager.cnrm.cloud.google.com/v1beta1
+    kind: Project
+    external: #@ "projects/" + data.values.gcp.projectID
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: #@ data.values.name + "-db-proxy"
+  namespace: #@ data.values.namespace
+  annotations:
+    cnrm.cloud.google.com/project-id: #@ data.values.gcp.projectID
+    iam.gke.io/gcp-service-account: #@ data.values.name + "-db-proxy@" + data.values.gcp.projectID +".iam.gserviceaccount.com"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: #@ data.values.name + "-db-proxy"
+  namespace: #@ data.values.namespace
+spec:
+  selector:
+    matchLabels:
+      app: #@ data.values.name + "-db-proxy"
+  template:
+    metadata:
+      labels:
+        app: #@ data.values.name + "-db-proxy"
+    spec:
+      serviceAccountName: #@ data.values.name + "-db-proxy"
+      containers:
+        - name: cloud-sql-proxy
+          image: gcr.io/cloudsql-docker/gce-proxy:1.17
+          command:
+          - "/cloud_sql_proxy"
+          - "-ip_address_types=PRIVATE"
+          - #@ "-instances=" + data.values.gcp.projectID + ":" + data.values.gcp.region + ":" + data.values.name + "-db=tcp:0.0.0.0:5432"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: #@ data.values.name + "-db-proxy"
+  namespace: #@ data.values.namespace
+spec:
+  ports:
+  - port: 5432
+    protocol: TCP
+    targetPort: 5432
+  selector:
+    app: #@ data.values.name + "-db-proxy"
+  type: ClusterIP
